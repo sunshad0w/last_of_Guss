@@ -1,0 +1,140 @@
+# ================================
+# The Last of Guss - Docker Compose
+# ================================
+# Архитектура:
+# - 1x PostgreSQL (база данных)
+# - 3x Node.js Backend (масштабируемые инстансы)
+# - 1x NGINX (реверс-прокси + балансировщик)
+#
+# Запуск: docker-compose up -d
+# Остановка: docker-compose down
+# Логи: docker-compose logs -f
+# ================================
+
+services:
+  # ================================
+  # PostgreSQL Database
+  # ================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: goose-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: goose_game
+      POSTGRES_USER: goose_user
+      POSTGRES_PASSWORD: goose_password_2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - goose-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goose_user -d goose_game"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ================================
+  # Backend Instance 1
+  # ================================
+  backend1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: goose-backend1
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://goose_user:goose_password_2024@postgres:5432/goose_game
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      ROUND_DURATION: ${ROUND_DURATION:-60}
+      COOLDOWN_DURATION: ${COOLDOWN_DURATION:-30}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - goose-network
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+
+  # ================================
+  # Backend Instance 2
+  # ================================
+  backend2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: goose-backend2
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://goose_user:goose_password_2024@postgres:5432/goose_game
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      ROUND_DURATION: ${ROUND_DURATION:-60}
+      COOLDOWN_DURATION: ${COOLDOWN_DURATION:-30}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - goose-network
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+
+  # ================================
+  # Backend Instance 3
+  # ================================
+  backend3:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: goose-backend3
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://goose_user:goose_password_2024@postgres:5432/goose_game
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      ROUND_DURATION: ${ROUND_DURATION:-60}
+      COOLDOWN_DURATION: ${COOLDOWN_DURATION:-30}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - goose-network
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+
+  # ================================
+  # NGINX Reverse Proxy
+  # ================================
+  nginx:
+    image: nginx:alpine
+    container_name: goose-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend1
+      - backend2
+      - backend3
+    networks:
+      - goose-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ================================
+# Networks
+# ================================
+networks:
+  goose-network:
+    driver: bridge
+    name: goose-network
+
+# ================================
+# Volumes
+# ================================
+volumes:
+  postgres_data:
+    name: goose-postgres-data

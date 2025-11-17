@@ -1,0 +1,76 @@
+// prisma/schema.prisma
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Перечисления (Enums)
+enum UserRole {
+  SURVIVOR  // Обычный игрок
+  NIKITA    // Специальная роль (тапы без очков)
+  ADMIN     // Администратор
+}
+
+enum RoundStatus {
+  COOLDOWN  // Период ожидания между раундами
+  ACTIVE    // Активный раунд (идет игра)
+  COMPLETED // Завершенный раунд
+}
+
+// Модель пользователя
+model User {
+  id           String      @id @default(uuid())
+  username     String      @unique
+  passwordHash String      @map("password_hash")
+  role         UserRole    @default(SURVIVOR)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  roundStats   RoundStats[]
+
+  @@map("users")
+}
+
+// Модель раунда
+model Round {
+  id          String      @id @default(uuid())
+  startTime   DateTime    @map("start_time")
+  endTime     DateTime    @map("end_time")
+  status      RoundStatus @default(COOLDOWN)
+  totalTaps   Int         @default(0) @map("total_taps")
+  totalPoints Int         @default(0) @map("total_points")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  roundStats  RoundStats[]
+
+  @@index([status])
+  @@index([startTime])
+  @@map("rounds")
+}
+
+// Модель статистики игрока в раунде
+model RoundStats {
+  id        String   @id @default(uuid())
+  roundId   String   @map("round_id")
+  userId    String   @map("user_id")
+  taps      Int      @default(0)
+  points    Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  round     Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, userId])
+  @@index([roundId])
+  @@index([userId])
+  @@index([points])
+  @@map("round_stats")
+}
