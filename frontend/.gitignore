@@ -31,5 +31,4 @@ dist-ssr
 .env.production
 
 # Build files
-dist
 build

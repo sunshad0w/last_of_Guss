@@ -24,8 +24,11 @@ const api = axios.create({
   baseURL: API_URL,
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json; charset=utf-8',
+    'Accept': 'application/json; charset=utf-8',
   },
+  // Явно указываем что ответ в JSON с правильной кодировкой
+  responseType: 'json',
 })
 
 /**
@@ -50,11 +53,21 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ message?: string; error?: string }>) => {
-    // Автоматический logout при 401
+    // Автоматический logout при 401 (кроме страницы логина)
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
-      showError('Сессия истекла. Войдите снова')
+      const isLoginPage = window.location.pathname === '/login'
+
+      if (!isLoginPage) {
+        // Токен истек - делаем logout и редирект
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+        showError('Сессия истекла. Войдите снова')
+      } else {
+        // На странице логина - показываем сообщение от сервера
+        const message = error.response.data?.message || error.response.data?.error
+        showError(message || 'Ошибка авторизации')
+      }
+
       return Promise.reject(error)
     }
 

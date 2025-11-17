@@ -1,6 +1,30 @@
 import type { User } from '@/types/user.types'
 
 /**
+ * Декодирует base64 строку с поддержкой UTF-8
+ *
+ * @param str - base64 строка
+ * @returns Декодированная UTF-8 строка
+ */
+const base64UrlDecode = (str: string): string => {
+  // Заменяем URL-safe символы на стандартные base64
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/')
+
+  // Декодируем base64 в бинарные данные
+  const binaryString = atob(base64)
+
+  // Преобразуем бинарные данные в массив байтов
+  const bytes = new Uint8Array(binaryString.length)
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i)
+  }
+
+  // Декодируем UTF-8 байты в строку
+  const decoder = new TextDecoder('utf-8')
+  return decoder.decode(bytes)
+}
+
+/**
  * Декодирует JWT payload без проверки подписи
  *
  * @param token - JWT токен
@@ -24,7 +48,7 @@ export const decodeToken = (token: string): TokenPayload | null => {
       return null
     }
 
-    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+    const decoded = base64UrlDecode(payload)
     return JSON.parse(decoded) as TokenPayload
   } catch {
     return null

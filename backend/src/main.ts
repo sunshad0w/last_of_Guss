@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import * as express from 'express';
 
 /**
  * Точка входа приложения
@@ -9,12 +10,17 @@ import { AppModule } from './app.module';
  * Настраивает:
  * - CORS для фронтенда
  * - Глобальную валидацию (class-validator)
+ * - UTF-8 кодировку для всех JSON ответов
  * - Порт сервера
  */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
+
+  // Настройка express middleware для правильной обработки UTF-8
+  app.use(express.json({ type: 'application/json' }));
+  app.use(express.urlencoded({ extended: true }));
 
   // Включаем CORS для фронтенда
   app.enableCors({
